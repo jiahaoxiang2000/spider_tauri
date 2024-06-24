@@ -25,18 +25,13 @@ const countries = ref([
 ]);
 
 const handleSubmit = async () => {
-  // const response = await invoke("submit_form", {
-  //   username: username.value,
-  //   password: password.value,
-  //   date: date.value,
-  //   country: country.value,
-  // });
-  formResponse.value += JSON.stringify({
+  const response = await invoke("spider", {
     username: username.value,
     password: password.value,
     date: date.value,
     country: country.value,
-  }, null, 2);
+  });
+  formResponse.value += response;
 };
 
 </script>
