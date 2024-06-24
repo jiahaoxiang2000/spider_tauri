@@ -6,7 +6,7 @@ import Greet from "./components/Greet.vue";
 
 <template>
   <div class="container">
-    <h1>Welcome to Tauri!</h1>
+    <h1 class="text-3xl font-bold underline">Welcome to Tauri!</h1>
 
     <p>Click on the Tauri, Vite, and Vue logos to learn more.</p>
 
