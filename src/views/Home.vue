@@ -19,13 +19,16 @@ const country = ref("All");
 const formResponse = ref("")
 
 const countries = ref([
-  { value: 'USA', text: 'USA' },
-  { value: 'Canada', text: 'Canada' },
+  { value: 'Brazil', text: 'Brazil' },
+  { value: 'India', text: 'India' },
+  { value: 'Indonesia', text: 'Indonesia' },
+  { value: 'Philippines', text: 'Philippines' },
+  { value: 'Pakistan', text: 'Pakistan' },
   // Add more options as needed
 ]);
 
 const handleSubmit = async () => {
-  const response = await invoke("spider", {
+  const response = await invoke("spider_start", {
     username: username.value,
     password: password.value,
     date: date.value,
