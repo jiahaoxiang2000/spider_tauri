@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref} from "vue";
 import { invoke } from "@tauri-apps/api/tauri";
 
 // Create a new Date object for the current date
@@ -28,13 +28,16 @@ const countries = ref([
 ]);
 
 const handleSubmit = async () => {
+  formResponse.value = "Starting spider..., wait for the time, now is block mode, Note: when spider not to operation anything!!\n"
+
   const response = await invoke("spider_start", {
     username: username.value,
     password: password.value,
     date: date.value,
     country: country.value,
   });
-  formResponse.value += response;
+
+  formResponse.value = "The data store folder: Desktop/data, Spider finished: " + response;
 };
 
 </script>

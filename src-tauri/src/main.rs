@@ -2,17 +2,31 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod spider;
-use std::fs::OpenOptions;
-
+use anyhow::Result;
+use log::{error, info};
 use simplelog::*;
+use spider::Spider;
+use std::fs::OpenOptions;
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
-fn spider_start(username: &str, password: &str, date: &str, country: &str) -> String {
-    format!(
-        "{{username: {}, password: {}, date: {}, country: {}}}",
-        username, password, date, country
-    )
+async fn spider_start(
+    username: String,
+    password: String,
+    date: String,
+    country: String,
+) -> Result<String, String> {
+    let mut spider = Spider::new(&username, &password, &date, &country);
+    match spider.start().await {
+        Ok(_) => {
+            info!("Spider started successfully");
+            Ok("Spider started successfully".to_string())
+        }
+        Err(e) => {
+            error!("Error starting spider: {}", e);
+            Err(format!("Error starting spider: {}", e))
+        }
+    }
 }
 
 fn main() {

@@ -1,14 +1,37 @@
 extern crate chrono;
 use anyhow::Result;
-use chrono::Utc;
-use log::{error, info};
+use chrono::{Local, Utc};
+use csv::{Writer, WriterBuilder};
+use dirs::{desktop_dir, home_dir};
+use log::{debug, error, info};
 use serde_json::{json, Value};
 use simplelog::*;
-use std::fs::{File, OpenOptions};
+use std::collections::HashSet;
+use std::fs::{self, OpenOptions};
+use std::path::Path;
 use std::sync::Once;
+use std::time::{self, Duration};
+use tokio::time::sleep;
+
+static INIT: Once = Once::new();
+
+pub fn initialize_logger() {
+    INIT.call_once(|| {
+        let log_file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .append(true)
+            .open("spider_app.log")
+            .unwrap();
+        let config = ConfigBuilder::new()
+            .set_time_format_str("%Y-%m-%d %H:%M:%S") // This sets the date format
+            .build();
+        WriteLogger::init(LevelFilter::Info, config, log_file).unwrap(); // For file logging
+    });
+}
 
 #[derive(Debug)]
-struct Spider {
+pub struct Spider {
     username: String,
     password: String,
     date: String,
@@ -17,7 +40,7 @@ struct Spider {
 }
 
 impl Spider {
-    fn new(username: &str, password: &str, date: &str, country: &str) -> Self {
+    pub fn new(username: &str, password: &str, date: &str, country: &str) -> Self {
         let country_code = match country {
             "Brazil" => "0055",
             "India" => "0091",
@@ -91,27 +114,162 @@ impl Spider {
 
         Ok(())
     }
-}
 
-static INIT: Once = Once::new();
+    async fn fetch_url(&self, query: &str) -> Result<String> {
+        let url = format!(
+            "https://web.antgst.com/antgst/sms/otpPremium/channel/sendRecordList?{}",
+            query
+        );
+        debug!("fetch URL: {}", url);
+        let respond = reqwest::Client::new()
+            .get(url)
+            .header("X-Access-Token", self.token.clone())
+            .send()
+            .await?
+            .text()
+            .await?;
+        Ok(respond)
+    }
 
-pub fn initialize_logger() {
-    INIT.call_once(|| {
-        let log_file = OpenOptions::new()
+    async fn fetch_data(&self) -> Result<String> {
+        let timestamp = Utc::now().timestamp();
+        let mut pageNo = 1;
+        let query = format!(
+            "_t={}&day={}&countryCode={}&column=createtime&order=desc&gatewayDr=000&pageNo={}&pageSize=100",
+            timestamp, self.date, self.country_code, pageNo
+        );
+
+        let response = self.fetch_url(&query).await?;
+        let v: Value = serde_json::from_str(&response)?;
+        let pages = v["result"]["pages"].as_i64().unwrap_or_default();
+        info!("Total item phone number: {}", pages * 100);
+
+        let now = Local::now();
+        let formatted_time = now.format("%Y-%m-%d_%H-%M-%S").to_string();
+        let store_file_name = format!("data_{}.csv", formatted_time);
+
+        for i in 1..=pages {
+            pageNo = i;
+            let query = format!(
+                "_t={}&day={}&countryCode={}&column=createtime&order=desc&gatewayDr=000&pageNo={}&pageSize=100",
+                timestamp, self.date, self.country_code, pageNo
+            );
+            // if error log and return
+            let response = match self.fetch_url(&query).await {
+                Ok(response) => response,
+                Err(e) => {
+                    // Handle other errors
+                    error!("fetch error: {}", e);
+                    return Err(e);
+                }
+            };
+            let v: Value = serde_json::from_str(&response)?;
+            let records = v["result"]["records"].as_array().unwrap();
+            self.store_data_csv(records, &store_file_name).unwrap();
+            sleep(Duration::from_secs_f32(0.5)).await;
+        }
+
+        Ok("Data fetched successfully".to_string())
+    }
+
+    fn store_data_csv(&self, data: &Vec<Value>, file_name: &str) -> Result<()> {
+        let desktop_path =
+            desktop_dir().unwrap_or_else(|| home_dir().expect("Home directory not found"));
+        let data_folder = desktop_path.join("data");
+        let binding = data_folder.clone();
+        if !data_folder.exists() {
+            fs::create_dir(data_folder).unwrap();
+        }
+        let data_folders = binding.to_str().unwrap();
+
+        // Adjust `file_name` to include the "data" folder in its path
+        let file_name = format!("{}/{}", data_folders, file_name);
+
+        let file_exists = Path::new(&file_name).exists();
+        let file = OpenOptions::new()
             .write(true)
             .create(true)
             .append(true)
-            .open("spider_app.log")
+            .open(&file_name)
             .unwrap();
-        let config = ConfigBuilder::new()
-            .set_time_format_str("%Y-%m-%d %H:%M:%S") // This sets the date format
-            .build();
-        WriteLogger::init(LevelFilter::Info, config, log_file).unwrap(); // For file logging
-    });
+
+        let mut headers = HashSet::new();
+        for item in data {
+            if let Value::Object(obj) = item {
+                for key in obj.keys() {
+                    headers.insert(key.clone());
+                }
+            }
+        }
+        // Convert headers HashSet into a Vec<String> and sort it for consistent column order
+        let mut headers: Vec<String> = headers.into_iter().collect();
+        headers.sort();
+
+        // Create a CSV writer
+        let mut wtr = WriterBuilder::new().from_writer(file);
+
+        // Write the headers to the CSV only if the file did not exist before
+        if !file_exists {
+            wtr.write_record(&headers).unwrap();
+        }
+
+        // Now, write each record
+        for item in data {
+            if let Value::Object(obj) = item {
+                // Create a record where each cell corresponds to a header, using empty string for missing keys
+                let record: Vec<String> = headers
+                    .iter()
+                    .map(|header| {
+                        obj.get(header).map_or_else(
+                            || "".to_string(),
+                            |value| match value {
+                                Value::String(s) => s.clone(),
+                                _ => value.to_string(),
+                            },
+                        )
+                    })
+                    .collect();
+
+                // Write the record to the CSV file
+                wtr.write_record(&record).unwrap();
+            }
+        }
+
+        // Ensure all writes are flushed to the CSV file
+        wtr.flush().unwrap();
+        // Implement this function to store the data in CSV format
+        Ok(())
+    }
+
+    pub async fn start(&mut self) -> Result<String> {
+
+        // Use the runtime to block on the async functions
+        self.get_token().await?;
+        self.fetch_data().await
+    }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn test_fetch_data_with_query() {
+        initialize_logger();
+        let mut spider = Spider::new("", "", "2024-06-23", "All");
+        let _ = spider.get_token().await;
+        let result = spider.fetch_data().await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_fetch_url_with_query() {
+        initialize_logger();
+        let mut spider = Spider::new("", "", "2024-06-23", "All");
+        let _ = spider.get_token().await;
+        let query = format!("_t={}&day={}&countryCode={}&column=createtime&order=desc&gatewayDr=000&pageNo=1&pageSize=100", Utc::now().timestamp(), spider.date,spider.country_code);
+        let result = spider.fetch_url(&query).await;
+        assert!(result.is_ok());
+    }
 
     // This test checks for failure in token retrieval due to network or other errors
     #[tokio::test]
