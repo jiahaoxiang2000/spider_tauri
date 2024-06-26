@@ -17,6 +17,7 @@ const password = ref("");
 const date = ref(formattedDate);
 const country = ref("All");
 const formResponse = ref("")
+const isProcessing = ref(false);
 
 const countries = ref([
   { value: 'Brazil', text: 'Brazil' },
@@ -28,7 +29,10 @@ const countries = ref([
 ]);
 
 const handleSubmit = async () => {
-  formResponse.value = "Starting spider..., wait for the time, now is block mode, Note: when spider not to operation anything!!\n"
+  formResponse.value = "Starting spider..., wait for the time.\n"
+  isProcessing.value = true;
+  console.log("Starting spider...");
+  
 
   const response = await invoke("spider_start", {
     username: username.value,
@@ -38,6 +42,7 @@ const handleSubmit = async () => {
   });
 
   formResponse.value = "The data store folder: Desktop/data, Spider finished: " + response;
+  isProcessing.value = false;
 };
 
 </script>
@@ -73,8 +78,9 @@ const handleSubmit = async () => {
       </div>
       <div>
         <button type="submit"
+         :disabled="isProcessing"
           class="w-full flex justify-center py-3 px-6 border border-transparent rounded-lg shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-          Spider
+          {{ isProcessing ? 'Processing...' : 'Spider' }}
         </button>
       </div>
     </form>
