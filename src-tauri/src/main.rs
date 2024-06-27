@@ -28,6 +28,19 @@ async fn spider_start(
         }
     }
 }
+#[tauri::command]
+async fn spider_status() -> Result<String, String> {
+    match Spider::status().await {
+        Ok(status) => {
+            info!("Spider status: {}", status);
+            Ok(status)
+        }
+        Err(e) => {
+            error!("Error getting spider status: {}", e);
+            Err(format!("Error getting spider status: {}", e))
+        }
+    }
+}
 
 fn main() {
     // Initialize simplelog
@@ -43,7 +56,7 @@ fn main() {
     WriteLogger::init(LevelFilter::Info, config, log_file).unwrap(); // For file logging
 
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![spider_start])
+        .invoke_handler(tauri::generate_handler![spider_start, spider_status])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

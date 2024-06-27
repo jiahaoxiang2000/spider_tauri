@@ -1,7 +1,9 @@
+extern crate lazy_static;
+
 extern crate chrono;
 use anyhow::Result;
 use chrono::{Local, Utc};
-use csv::{Writer, WriterBuilder};
+use csv::WriterBuilder;
 use dirs::{desktop_dir, home_dir};
 use log::{debug, error, info};
 use serde_json::{json, Value};
@@ -10,7 +12,8 @@ use std::collections::HashSet;
 use std::fs::{self, OpenOptions};
 use std::path::Path;
 use std::sync::Once;
-use std::time::{self, Duration};
+use std::time::Duration;
+use tokio::sync::Mutex;
 use tokio::time::sleep;
 
 static INIT: Once = Once::new();
@@ -37,6 +40,10 @@ pub struct Spider {
     date: String,
     country_code: String,
     token: String,
+}
+
+lazy_static::lazy_static! {
+    static ref SPIDER_STATUS: Mutex<String> = Mutex::new(String::new());
 }
 
 impl Spider {
@@ -149,6 +156,11 @@ impl Spider {
         let store_file_name = format!("data_{}.csv", formatted_time);
 
         for i in 1..=pages {
+            {
+                let mut status = SPIDER_STATUS.lock().await;
+                *status = format!("Fetching data from page {} of {}", i * 100, pages * 100);
+            }
+
             pageNo = i;
             let query = format!(
                 "_t={}&day={}&countryCode={}&column=createtime&order=desc&gatewayDr=000&pageNo={}&pageSize=100",
@@ -242,10 +254,14 @@ impl Spider {
     }
 
     pub async fn start(&mut self) -> Result<String> {
-
         // Use the runtime to block on the async functions
         self.get_token().await?;
         self.fetch_data().await
+    }
+
+    pub async fn status() -> Result<String> {
+        let status = SPIDER_STATUS.lock().await;
+        Ok(status.clone())
     }
 }
 

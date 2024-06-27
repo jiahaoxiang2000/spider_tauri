@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref} from "vue";
+import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/tauri";
 
 // Create a new Date object for the current date
@@ -32,7 +32,12 @@ const handleSubmit = async () => {
   formResponse.value = "Starting spider..., wait for the time.\n"
   isProcessing.value = true;
   console.log("Starting spider...");
-  
+
+ // start one task, 0.5s invoke the function spider_status
+ const interval = setInterval(async () => {
+    const response = await invoke("spider_status");
+    formResponse.value = response as string;
+  }, 500);
 
   const response = await invoke("spider_start", {
     username: username.value,
@@ -41,7 +46,10 @@ const handleSubmit = async () => {
     country: country.value,
   });
 
-  formResponse.value = "The data store folder: Desktop/data, Spider finished: " + response;
+
+  clearInterval(interval);
+
+  formResponse.value += ", The data store folder: Desktop/data, Spider finished: " + response;
   isProcessing.value = false;
 };
 
@@ -77,14 +85,13 @@ const handleSubmit = async () => {
         </select>
       </div>
       <div>
-        <button type="submit"
-         :disabled="isProcessing"
+        <button type="submit" :disabled="isProcessing"
           class="w-full flex justify-center py-3 px-6 border border-transparent rounded-lg shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
           {{ isProcessing ? 'Processing...' : 'Spider' }}
         </button>
       </div>
     </form>
-    <div  class="mt-4 p-4 bg-slate-500 rounded">
+    <div class="mt-4 p-4 bg-slate-500 rounded">
       {{ formResponse }}
     </div>
   </div>
