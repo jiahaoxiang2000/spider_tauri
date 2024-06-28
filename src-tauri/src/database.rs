@@ -45,7 +45,7 @@ pub fn log_failed_operation(spider: &Spider, failure_reason: &str) -> Result<usi
 
 pub fn return_failed_operation() -> Result<Vec<Spider>> {
     let conn = connect_to_default_db().unwrap();
-    let mut stmt = conn.prepare("SELECT * FROM failed_operations")?;
+    let mut stmt = conn.prepare("SELECT * FROM failed_operations ORDER BY id DESC")?;
     let spider_iter = stmt.query_map([], |row| {
         Ok(Spider {
             username: row.get(1)?,
@@ -78,12 +78,12 @@ mod tests {
     #[test]
     fn test_log_failed_operation() {
         let spider = Spider {
-            username: "test".to_string(),
-            password: "test".to_string(),
-            date: "2021-01-01".to_string(),
-            country_code: "US".to_string(),
-            token: "test".to_string(),
-            page_number: 1,
+            username: "456bet".to_string(),
+            password: "456bet888".to_string(),
+            date: "2024-06-27".to_string(),
+            country_code: "ALL".to_string(),
+            token: "11111".to_string(),
+            page_number: 5,
         };
         let failure_reason = "test";
         let result = log_failed_operation(&spider, failure_reason);

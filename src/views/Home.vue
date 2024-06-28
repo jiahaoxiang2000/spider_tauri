@@ -64,12 +64,18 @@ const handleSubmit = async () => {
     date: date.value,
     country: country.value,
     pageNumber: pageNumber.value,
+  }).catch(() => {
+    clearInterval(interval);
   });
-
 
   clearInterval(interval);
 
-  formResponse.value += ", The data store folder: Desktop/data, Spider finished: " + response;
+  if (response === undefined) {
+    formResponse.value = "the network is break, go Fail page to rerun the task";
+  } else {
+    formResponse.value += ", The data store folder: Desktop/data, Spider finished: " + response;
+  }
+
   isProcessing.value = false;
 };
 
@@ -97,7 +103,7 @@ const handleSubmit = async () => {
         <label for="country" class="block text-lg font-semibold text-gray-700">Country</label>
         <select v-model="country" id="country"
           class="mt-2 block w-full p-3 border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-          <option value="All">All</option>
+          <option value="">All</option>
           <option v-for="country in countries" :key="country.value" :value="country.value">
             {{ country.text }}
           </option>

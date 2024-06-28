@@ -17,6 +17,8 @@ use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::time::sleep;
 
+use crate::database::log_failed_operation;
+
 static INIT: Once = Once::new();
 
 pub fn initialize_logger() {
@@ -186,6 +188,7 @@ impl Spider {
                 Err(e) => {
                     // Handle other errors
                     error!("fetch error: {}", e);
+                    log_failed_operation(self, &e.to_string()).unwrap();
                     return Err(e);
                 }
             };
