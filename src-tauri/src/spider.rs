@@ -6,6 +6,7 @@ use chrono::{Local, Utc};
 use csv::WriterBuilder;
 use dirs::{desktop_dir, home_dir};
 use log::{debug, error, info};
+use serde::Serialize;
 use serde_json::{json, Value};
 use simplelog::*;
 use std::collections::HashSet;
@@ -33,21 +34,30 @@ pub fn initialize_logger() {
     });
 }
 
+#[derive(Serialize)]
 #[derive(Debug)]
 pub struct Spider {
-    username: String,
-    password: String,
-    date: String,
-    country_code: String,
-    token: String,
+    pub username: String,
+    pub password: String,
+    pub date: String,
+    pub country_code: String,
+    pub token: String,
+    pub page_number: i64,
 }
+
 
 lazy_static::lazy_static! {
     static ref SPIDER_STATUS: Mutex<String> = Mutex::new(String::new());
 }
 
 impl Spider {
-    pub fn new(username: &str, password: &str, date: &str, country: &str) -> Self {
+    pub fn new(
+        username: &str,
+        password: &str,
+        date: &str,
+        country: &str,
+        page_number: i64,
+    ) -> Self {
         let country_code = match country {
             "Brazil" => "0055",
             "India" => "0091",
@@ -69,6 +79,7 @@ impl Spider {
             date: date.to_string(),
             country_code: country_code.to_string(),
             token: "".to_string(),
+            page_number: page_number,
         }
     }
 
@@ -138,12 +149,12 @@ impl Spider {
         Ok(respond)
     }
 
-    async fn fetch_data(&self) -> Result<String> {
+    async fn fetch_data(&mut self) -> Result<String> {
         let timestamp = Utc::now().timestamp();
-        let mut pageNo = 1;
+        let mut page_number = 1;
         let query = format!(
             "_t={}&day={}&countryCode={}&column=createtime&order=desc&gatewayDr=000&pageNo={}&pageSize=100",
-            timestamp, self.date, self.country_code, pageNo
+            timestamp, self.date, self.country_code, page_number
         );
 
         let response = self.fetch_url(&query).await?;
@@ -155,16 +166,19 @@ impl Spider {
         let formatted_time = now.format("%Y-%m-%d_%H-%M-%S").to_string();
         let store_file_name = format!("data_{}.csv", formatted_time);
 
-        for i in 1..=pages {
+        let start_page_number = self.page_number;
+
+        for i in start_page_number..=pages {
             {
                 let mut status = SPIDER_STATUS.lock().await;
                 *status = format!("Fetching data from page {} of {}", i * 100, pages * 100);
             }
 
-            pageNo = i;
+            page_number = i;
+            self.page_number = page_number;
             let query = format!(
                 "_t={}&day={}&countryCode={}&column=createtime&order=desc&gatewayDr=000&pageNo={}&pageSize=100",
-                timestamp, self.date, self.country_code, pageNo
+                timestamp, self.date, self.country_code, page_number
             );
             // if error log and return
             let response = match self.fetch_url(&query).await {
@@ -271,7 +285,7 @@ mod tests {
     #[tokio::test]
     async fn test_fetch_data_with_query() {
         initialize_logger();
-        let mut spider = Spider::new("", "", "2024-06-23", "All");
+        let mut spider = Spider::new("", "", "2024-06-23", "All", 1);
         let _ = spider.get_token().await;
         let result = spider.fetch_data().await;
         assert!(result.is_ok());
@@ -280,7 +294,7 @@ mod tests {
     #[tokio::test]
     async fn test_fetch_url_with_query() {
         initialize_logger();
-        let mut spider = Spider::new("", "", "2024-06-23", "All");
+        let mut spider = Spider::new("", "", "2024-06-23", "All", 1);
         let _ = spider.get_token().await;
         let query = format!("_t={}&day={}&countryCode={}&column=createtime&order=desc&gatewayDr=000&pageNo=1&pageSize=100", Utc::now().timestamp(), spider.date,spider.country_code);
         let result = spider.fetch_url(&query).await;
@@ -291,7 +305,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_token() {
         initialize_logger();
-        let mut spider = Spider::new("", "", "2024-06-24", "All");
+        let mut spider = Spider::new("", "", "2024-06-24", "All", 1);
         assert_eq!(spider.token, "");
         let result = spider.get_token().await;
         assert!(result.is_ok());
@@ -299,7 +313,7 @@ mod tests {
 
     #[test]
     fn test_spider_new_with_valid_credentials() {
-        let spider = Spider::new("testuser", "testpass", "2023-04-01", "Brazil");
+        let spider = Spider::new("testuser", "testpass", "2023-04-01", "Brazil", 1);
         assert_eq!(spider.username, "testuser");
         assert_eq!(spider.password, "testpass");
         assert_eq!(spider.date, "2023-04-01");
@@ -309,7 +323,7 @@ mod tests {
 
     #[test]
     fn test_spider_new_with_empty_username_and_password() {
-        let spider = Spider::new("", "", "2023-04-01", "India");
+        let spider = Spider::new("", "", "2023-04-01", "India", 1);
         assert_eq!(spider.username, "456bet");
         assert_eq!(spider.password, "456bet888");
         assert_eq!(spider.date, "2023-04-01");
@@ -319,7 +333,7 @@ mod tests {
 
     #[test]
     fn test_spider_new_with_unsupported_country() {
-        let spider = Spider::new("testuser", "testpass", "2023-04-01", "All");
+        let spider = Spider::new("testuser", "testpass", "2023-04-01", "All",1);
         assert_eq!(spider.country_code, "");
     }
 }

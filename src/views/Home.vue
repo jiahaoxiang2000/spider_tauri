@@ -33,8 +33,8 @@ const handleSubmit = async () => {
   isProcessing.value = true;
   console.log("Starting spider...");
 
- // start one task, 0.5s invoke the function spider_status
- const interval = setInterval(async () => {
+  // start one task, 0.5s invoke the function spider_status
+  const interval = setInterval(async () => {
     const response = await invoke("spider_status");
     formResponse.value = response as string;
   }, 500);
@@ -44,6 +44,7 @@ const handleSubmit = async () => {
     password: password.value,
     date: date.value,
     country: country.value,
+    page_number: 1,
   });
 
 
