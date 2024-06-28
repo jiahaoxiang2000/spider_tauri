@@ -1,9 +1,27 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
 import { invoke } from "@tauri-apps/api/tauri";
+
+import { Spider } from "../mod";
+import { useRoute } from "vue-router";
+
+
+const route = useRoute();
 
 // Create a new Date object for the current date
 const today = new Date();
+
+onMounted(async () => {
+  if (route.query.spider_str) {
+    let spider: Spider = JSON.parse(route.query.spider_str as string);
+    console.log("spider_str: ", spider);
+    username.value = spider.username;
+    password.value = spider.password;
+    date.value = spider.date;
+    country.value = spider.country_code;
+    pageNumber.value = spider.page_number;
+  }
+});
 
 // Subtract one day from the current date
 today.setDate(today.getDate() - 1);
@@ -18,6 +36,7 @@ const date = ref(formattedDate);
 const country = ref("All");
 const formResponse = ref("")
 const isProcessing = ref(false);
+const pageNumber = ref(1);
 
 const countries = ref([
   { value: 'Brazil', text: 'Brazil' },
@@ -38,13 +57,13 @@ const handleSubmit = async () => {
     const response = await invoke("spider_status");
     formResponse.value = response as string;
   }, 500);
-
+  // note: the pageNumber argument is equation the rust page_number argument.
   const response = await invoke("spider_start", {
     username: username.value,
     password: password.value,
     date: date.value,
     country: country.value,
-    page_number: 1,
+    pageNumber: pageNumber.value,
   });
 
 

@@ -48,7 +48,7 @@ async fn spider_status() -> Result<String, String> {
 }
 
 #[tauri::command]
-async fn spider_return_failed() -> Result<String, String> {
+fn spider_return_failed() -> Result<String, String> {
     match database::return_failed_operation() {
         Ok(spiders) => {
             info!("Failed operations returned successfully");
@@ -78,7 +78,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             spider_start,
             spider_status,
-            // spider_return_failed
+            spider_return_failed,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

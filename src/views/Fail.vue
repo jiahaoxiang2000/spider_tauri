@@ -17,32 +17,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { invoke } from '@tauri-apps/api';
+import { onMounted, ref } from 'vue';
+import { Spider } from '../mod';
+import { useRouter } from 'vue-router';
+const router = useRouter();
+const spiders = ref<Spider[]>([]);
 
-type Spider = {
-    username: string;
-    password: string;
-    date: string;
-    country_code: string;
-    token: string;
-    page_number: number;
-};
-
-const spiders = ref<Spider[]>([
-  // Example spider data
-  {
-    username: 'user1',
-    password: 'pass1',
-    date: '2023-01-01',
-    country_code: 'US',
-    token: 'token1',
-    page_number: 1,
-  },
-  // Add more spider objects here
-]);
+onMounted(async () => {
+  let failed = await invoke("spider_return_failed");
+  JSON.parse(failed as string).forEach((spider: Spider) => {
+    spiders.value.push(spider);
+  });
+});
 
 const rerunSpider = (spider: Spider) => {
   // Implement the logic to rerun the spider based on its token
-  
+  console.log(spider);
+  let spider_str = JSON.stringify(spider);
+  router.push({ name: 'Home', query: { spider_str }});
+
 };
 </script>

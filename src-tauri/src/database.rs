@@ -63,7 +63,7 @@ pub fn return_failed_operation() -> Result<Vec<Spider>> {
     Ok(spiders)
 }
 
-// test 
+// test
 
 #[cfg(test)]
 mod tests {
@@ -89,6 +89,4 @@ mod tests {
         let result = log_failed_operation(&spider, failure_reason);
         assert_eq!(result.is_ok(), true);
     }
-
-
 }
