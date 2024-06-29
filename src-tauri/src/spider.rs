@@ -19,10 +19,10 @@ use tokio::time::sleep;
 
 use crate::database::log_failed_operation;
 
-static INIT: Once = Once::new();
+static _INIT: Once = Once::new();
 
-pub fn initialize_logger() {
-    INIT.call_once(|| {
+pub fn _initialize_logger() {
+    _INIT.call_once(|| {
         let log_file = OpenOptions::new()
             .write(true)
             .create(true)
@@ -287,7 +287,7 @@ mod tests {
     use super::*;
     #[tokio::test]
     async fn test_fetch_data_with_query() {
-        initialize_logger();
+        _initialize_logger();
         let mut spider = Spider::new("", "", "2024-06-23", "All", 1);
         let _ = spider.get_token().await;
         let result = spider.fetch_data().await;
@@ -296,7 +296,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_fetch_url_with_query() {
-        initialize_logger();
+        _initialize_logger();
         let mut spider = Spider::new("", "", "2024-06-23", "All", 1);
         let _ = spider.get_token().await;
         let query = format!("_t={}&day={}&countryCode={}&column=createtime&order=desc&gatewayDr=000&pageNo=1&pageSize=100", Utc::now().timestamp(), spider.date,spider.country_code);
@@ -307,7 +307,7 @@ mod tests {
     // This test checks for failure in token retrieval due to network or other errors
     #[tokio::test]
     async fn test_get_token() {
-        initialize_logger();
+        _initialize_logger();
         let mut spider = Spider::new("", "", "2024-06-24", "All", 1);
         assert_eq!(spider.token, "");
         let result = spider.get_token().await;

@@ -37,7 +37,8 @@ async fn spider_start(
 async fn spider_status() -> Result<String, String> {
     match Spider::status().await {
         Ok(status) => {
-            info!("Spider status: {}", status);
+            // NOTE: not info this, because the `spider_status` call interval is too short, long time run, the log file will more big.
+            // info!("Spider status: {}", status);
             Ok(status)
         }
         Err(e) => {
